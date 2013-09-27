@@ -14,3 +14,4 @@ fs.readFile(file, {encoding:'utf8'}, function(e,data) {
     vm.runInNewContext(data, sandbox, file);
     console.log(Object.keys(sandbox).join("\n"))
 })
+
