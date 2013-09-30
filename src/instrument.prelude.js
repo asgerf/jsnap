@@ -30,7 +30,7 @@ Object.getOwnPropertyNames = function(o) {
     var array = getOwnPropertyNames.call(_Object,o);
     return array.filter(function (x) {
         return x.substring(0,5) !== "__$__";
-    };
+    });
 }
 
 defineHiddenProperty(Function.prototype, "__$__setenv", function(env) {
@@ -38,8 +38,26 @@ defineHiddenProperty(Function.prototype, "__$__setenv", function(env) {
     return this;
 });
     
+defineHiddenProperty(Object.prototype, "__$__setobjenv", function(env) {
+    var obj = this;
+    var names = getOwnPropertyNames.call(_Object, obj);
+    for (var k=0; k<names.length; k++) {
+        var name = names[k];
+        var desc = getOwnPropertyDescriptor.call(obj, name);
+        if (desc.get) {
+            desc.get.__$__env = env;
+        }
+        if (desc.set) {
+            desc.set.__$__env = env;
+        }
+    }
+    return this;
+});
+    
 defineHiddenProperty(window, "__$__id", function(x) {
     return x;
 });
+    
+defineHiddenProperty(window, "__$__env0", window);
     
 })(this);
