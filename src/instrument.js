@@ -1,6 +1,7 @@
 var esprima = require('esprima')
 var escodegen = require('escodegen')
 var Map = require('./map.js')
+var fs = require('fs')
 
 // Returns the given AST node's immediate children as an array.
 // Property names that start with $ are considered annotations, and will be ignored.
@@ -194,9 +195,29 @@ function prepare(node)  {
     }
 }
 
+function ident(x) {
+    return {
+        type: 'Identifier',
+        name: x
+    }
+}
+
+// true if the given function is a getter or a setter
+function isGetterSetter(node) {
+    if (node.$parent.type !== 'Property')
+        return false;
+    if (node.$parent.kind === 'init')
+        return false;
+    return true;
+}
+
+// TODO: only create necessary environments (optimization)
+
 function transform(node) {
+    var replacement = node // by default, return same object (possibly mutated)
     switch (node.type) {
         case 'VariableDeclaration':
+            var fun = getEnclosingFunction(node)
             var assignments = [];
             for (var i=0; i<node.declarations.length; i++) {
                 var decl = node.declarations[i];
@@ -205,136 +226,151 @@ function transform(node) {
                 assignments.push({
                     type:'AssignmentExpression',
                     operator:'=',
-                    left: decl.id,
+                    left: {
+                        type: 'MemberExpression',
+                        object: ident("__$__env" + fun.$depth),
+                        property: ident(decl.id.name)
+                    },
                     right: decl.init
                 })
             }
             var expr = assignments.length == 1 ? assignments[0] : {type:'SequenceExpression', expressions:assignments};
             if (node.$parent.type === 'ForStatement' && node.$parent.init === node) {
-                return expr
+                replacement = expr
             } else if (node.$parent.type === 'ForInStatement' && node.$parent.left === node) {
-                var fun = getEnclosingFunction(node)
-                return { 
+                replacement = { 
                     type: 'MemberExpression',
-                    object: { type:'Identifier', name:"__$__env" + fun.$depth },
-                    property: { type:'Identifier', name:node.declarations[0].id }
+                    object: ident("__$__env" + fun.$depth),
+                    property: ident(node.declarations[0].id.name)
                 }
             } else {
                 if (assignments.length == 0) {
-                    return {type:'EmptyStatement'}
+                    replacement = {type:'EmptyStatement'}
+                } else {
+                    replacement = {type:'ExpressionStatement', expression:expr}
                 }
-                return {type:'ExpressionStatement', expression:expr}
             }
+            break;
         case 'Identifier':
             if (isIdentifierExpression(node)) {
                 var scope = resolveId(node)
                 var depth = scope.$depth
                 if (depth > 0) {
-                    var newNode = {
+                    replacement = {
                         type:'MemberExpression',
-                        object:{ type:'Identifier', name:'__$__env' + depth },
-                        property: { type:'Identifier', name:node.name }
+                        object: ident('__$__env' + depth),
+                        property: ident(node.name)
                     }
                     if (node.$parent.type === 'CallExpression' && node.$parent.callee === node) {
-                        newNode = wrapID(newNode) // avoid changing the this argument
+                        replacement = wrapID(replacement) // avoid changing the this argument
                     }
-                    return newNode
                 }
             }
             break;
-        case 'Program':
-            
+        case 'ObjectExpression':
+            var scope = getEnclosingScope(node)
+            replacement = {
+                type: 'CallExpression',
+                callee: {
+                    type: 'MemberExpression',
+                    object: node,
+                    property: ident("__$__setobjenv")
+                },
+                arguments: [ident("__$__env" + scope.$depth)]
+            }
             break;
         case 'FunctionExpression':
         case 'FunctionDeclaration':
             var parent = getEnclosingFunction(node.$parent)
-            node.$head = [];
-            node.$depth = 1+parent.$depth
-            if (!node.id) {
-                node.id = {type:'Identifier', name:"__$__self"};
-            }
-            var envDecls = [];
-            // var env0 = {}
-            envDecls.push({
-                type:'VariableDeclarator',
-                id: {type:'Identifier', name:'__$__env0'},
-                init: {
-                    type:'ObjectExpression',
-                    properties:[]
-                }
-            })
-            // var env1 = self.env
-            envDecls.push({
-                type:'VariableDeclarator', 
-                id: {type:'Identifier', name:'__$__env1'}, 
-                init: {
-                    type:'MemberExpression',
-                    object: {type:'Identifier',name:node.id.name}, 
-                    property: {type:'Identifier', name:'__$__env'}
-                }
-            })
-            // var env(N+1) = envN.env
-            for (var i=1; i<node.$depth; i++) {
-                envDecls.push({
-                    type:'VariableDeclarator',
-                    id: {type:'Identifier', name:'__$__env' + (i+1)},
-                    init: {
-                        type:'MemberExpression',
-                        object: {type:'Identifier', name:'__$__env' + i},
-                        property: {type:'Identifier', name:'__$__env'}
-                    }
-                })
-            }
-            // var env, env0, ... envN
-            node.$head.push({
+            var head = [];
+            head.push({
                 type:'VariableDeclaration',
-                declarations:envDecls
+                kind:'var',
+                declarations:[{
+                    type:'VariableDeclarator',
+                    id: {type:'Identifier', name:'__$__env' + node.$depth},
+                    init: {
+                        type:'ObjectExpression',
+                        properties:[{
+                            type:'Property',
+                            kind:'init',
+                            key:ident("__$__env"),
+                            value:ident("__$__env" + (node.$depth-1))
+                        }].concat(node.params.map(function(param) {
+                            return {
+                                type:'Property',
+                                kind:'init',
+                                key:ident(param.name),
+                                value:ident(param.name)
+                            }
+                        }))
+                    }
+                }]
             })
-            // env0.env = env1
-            node.$head.push(wrapStmt({
-                type:'AssignmentExpression',
-                operator:'=',
-                left: {
-                    type:'MemberExpression',
-                    object: {type:'Identifier', name:'__$__env0'},
-                    property: {type:'Identifier', name:'__$__env'}
-                },
-                right: {
-                    type:'Identifier',
-                    name:'__$__env1'
-                }
-            }))
-            
-            // TODO: transfer parameters into environment object
-            
             var block = node.body;
-            block.body = node.$head.concat(node.$funDeclInits, block.body);
+            block.body = head.concat(node.$funDeclInits, block.body);
             
-            if (node.type === 'FunctionExpression') {
-                return {
+            if (node.type === 'FunctionExpression' && !isGetterSetter(node)) {
+                replacement = {
                     type:'CallExpression',
                     callee: {
                         type:'MemberExpression',
                         object:node,
                         property:{type:'Identifier', name:"__$__setenv"}
                     },
-                    arguments: [{type:'Identifier', name:"__$__env0"}]
+                    arguments: [{type:'Identifier', name:"__$__env" + (node.$depth - 1)}]
                 }
-            } else {
+            } else if (node.type === 'FunctionDeclaration') {
                 parent.$funDeclInits.push(wrapStmt({
                     type:'AssignmentExpression',
                     operator:'=',
                     left: {
                         type: 'MemberExpression',
-                        object: {type:'Identifier', name:node.id.name},
-                        property: {type:'Identifier', name:"__$__env"}
+                        object: ident(node.id.name),
+                        property: ident("__$__env")
                     },
-                    right: { type:'Identifier', name:"__$__env0"}
+                    right: { type:'Identifier', name:"__$__env" + (node.$depth - 1)}
+                }))
+                parent.$funDeclInits.push(wrapStmt({
+                    type:'AssignmentExpression',
+                    operator:'=',
+                    left: {
+                        type: 'MemberExpression',
+                        object: ident("__$__env" + (node.$depth-1)),
+                        property: ident(node.id.name)
+                    },
+                    right: ident(node.id.name)
                 }))
             }
             break;
+        case 'CatchClause':
+            var block = node.body;
+            var stmt = {
+                type: 'VariableDeclaration',
+                kind: 'var',
+                declarations: [{
+                    type: 'VariableDeclarator',
+                    id: ident("__$__env" + node.$depth),
+                    init: {
+                        type: 'ObjectExpression',
+                        properties: [{
+                            type: 'Property',
+                            kind: 'init',
+                            key: ident("__$__env"),
+                            value: ident("__$__env" + (node.$depth - 1))
+                        },{
+                            type: 'Property',
+                            kind: 'init',
+                            key: ident(node.param.name),
+                            value: ident(node.param.name)
+                        }]
+                    }
+                }]
+            }
+            block.body = [stmt].concat(block.body)
+            break;
     }
-    return node;
+    return replacement;
 }
 
 function clearAnnotations(node) {
@@ -347,22 +383,45 @@ function clearAnnotations(node) {
     children(node).forEach(clearAnnotations);
 }
 
-var util = require('util');
-
-var instrument = exports.instrument = function(code) {
+var instrument = module.exports = function(code, options) {
+    // setup default options
+    options = options || {}
+    if (!('prelude' in options))
+        options.prelude = true
+        
+    // parse+transform AST
     var ast = esprima.parse(code)    
     injectParentPointers(ast, null)
     injectEnvs(ast)
     prepare(ast)
     var newAST = fmap(ast, transform);
     clearAnnotations(newAST)
-//    return JSON.stringify(newAST)
-//    return util.inspect(newAST, {depth:null});
-//    return JSON.stringify(newAST);
-    return escodegen.generate(newAST);
+    
+    // Generate code
+    var instrumentedCode = escodegen.generate(newAST);
+    if (options.prelude) {
+        var preludeCode = fs.readFileSync(__dirname + '/instrument.prelude.js', 'utf8')
+        instrumentedCode = preludeCode + instrumentedCode
+    }
+    return instrumentedCode
 }
 
 // Testing entry point
-var fs = require('fs')
-var code = fs.readFileSync(process.argv[2], 'utf8')
-console.log(instrument(code))
+if (require.main === module) {
+    main();
+}
+function main() {
+    var program = require('commander')
+    program
+        .option('--no-prelude')
+        .parse(process.argv)
+    var options = {}
+    if (program.no_prelude) {
+        options.prelude = false
+    }
+    for (var i=0; i<program.args.length; i++) {
+        var code = fs.readFileSync(program.args[i], 'utf8')
+        console.log(instrument(code), options)
+        options.prelude = false // only print prelude first time
+    }
+}

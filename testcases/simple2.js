@@ -5,3 +5,4 @@ function foo(x) {
 }
 
 console.log(foo(5)(7));
+console.log(foo(20)(30));
