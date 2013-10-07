@@ -1,3 +1,10 @@
+/**
+ * Test that instrumentation does not affect behaviour.
+ * 
+ * Every file in the testcases directory is executed with and without instrumentation.
+ * The stdout strings from the two runs are then tested for consistency.
+ */
+
 var fs = require('fs')
 var program = require('commander')
 var instrument = require('./src/instrument')
@@ -22,13 +29,14 @@ files.forEach(function(filename) {
     var instrumentedCode = instrument(code, {prelude: true})
     fs.writeFileSync(outdir + '/' + filename, instrumentedCode)
     execFile(nodeCmd, [testdir + '/' + filename], {timeout:10000}, function(err, stdout1, stderr1) {
-        if (err)
+        if (err) {
             throw err;
+        }
         stdout1 = stdout1.toString('utf8')
         stderr1 = stderr1.toString('utf8')
         execFile(nodeCmd, [outdir + '/' + filename], {timeout:10000}, function(err, stdout2, stderr2) {
             //if (err)
-            //    throw err;
+            //$    throw err;
             var msg = "OK";
             stdout2 = stdout2.toString('utf8')
             stderr2 = stderr2.toString('utf8')

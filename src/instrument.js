@@ -103,6 +103,11 @@ function isIdentifierExpression(node) {
             return node.$parent.computed || node.$parent.property !== node;
         case 'Property':
             return node.$parent.key !== node;
+        case 'LabeledStatement':
+            return node.$parent.label !== node;
+        case 'BreakStatement':
+        case 'ContinueStatement':
+            return node.$parent.label !== node;
     }
     return true;
 }
@@ -145,10 +150,7 @@ function injectEnvs(node) {
             parent.$env.put(node.id.name, node.id)
             break;
     }
-    var list = children(node)
-    for (var i=0; i<list.length; i++) {
-        injectEnvs(list[i])
-    }
+    children(node).forEach(injectEnvs)
 }
 
 // Returns the scope to which the given name resolves. Name argument is optional if the node is an Identifier.
@@ -189,10 +191,7 @@ function prepare(node)  {
             node.$funDeclInits = [];
             break;
     }
-    var list = children(node)
-    for (var i=0; i<list.length; i++) {
-        prepare(list[i])
-    }
+    children(node).forEach(prepare);
 }
 
 function ident(x) {
