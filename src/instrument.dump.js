@@ -25,9 +25,6 @@
     // TODO: identify function objects in dump
     
     function dump(obj) {
-        if (obj.__$__visited) {
-            return;
-        }
         var key = getKey(obj);
         var objDump = heap[key] = {}
         var props = Object.getOwnPropertyNames(obj)
@@ -79,7 +76,12 @@
         }
     }
     
+    enqueue(window);
+    while (worklist.length > 0) {
+        dump(worklist.pop());
+    }
     
+    console.log(heap);
     
     
 })();

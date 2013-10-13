@@ -423,4 +423,6 @@ function main() {
         console.log(instrument(code), options)
         options.prelude = false // only print prelude first time
     }
+    // print dumping code
+    console.log(fs.readFileSync(__dirname + '/instrument.dump.js', 'utf8'))
 }
