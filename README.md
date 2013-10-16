@@ -47,7 +47,7 @@ Objects in the heap are encoded in the following way:
 
 The `Property` type corresponds to what you would get from `getOwnPropertyDescriptor`, except with the additional `name` property. The properties occur in the same order as returned by `getOwnPropertyNames`.
 
-An object is a function if and only if it has a `function` property. For user-defined properties, value of `function.id` is a number indicating which function expression (or declaration) was used to create it. Functions are numbered by the order in which they occur in the source code, starting with 1 (so we can use 0 to refer to the top-level, although this is never occurs in a heap dump). For native functions, `function.id` is either a string denoting an access path to that native, e.g. `"String.prototype.substring"`.
+An object is a function if and only if it has a `function` property. For user-defined functions, the value of `function.id` is a number indicating which function expression (or declaration) was used to create it. Functions are numbered by the order in which they occur in the source code, starting with 1 (so we can use 0 to refer to the top-level, although this is never occurs in a heap dump). For native functions, `function.id` is a string denoting an access path to that native, e.g. `"String.prototype.substring"`.
 
 The `env` property is used to refer to the *enclosing environment object*. Function objects and environment objects have such a link. For functions, it refers to the environment object that was active when the function was created (binding the free variables of the function). Environment objects also have an `env` property, which refers to the environment object one scope further up.
 
