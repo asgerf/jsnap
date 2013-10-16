@@ -183,15 +183,20 @@ function wrapStmt(x) {
     }
 }
 
-function prepare(node)  {
-    switch (node.type) {
-        case 'FunctionDeclaration':
-        case 'FunctionExpression':
-        case 'Program':
-            node.$funDeclInits = [];
-            break;
+function prepare(ast)  {
+    var id = 0;
+    function visit(node) {
+        switch (node.type) {
+            case 'FunctionDeclaration':
+            case 'FunctionExpression':
+            case 'Program':
+                node.$funDeclInits = [];
+                node.$functionId = id++; // assign preorder IDs
+                break;
+        }
+        children(node).forEach(visit);
     }
-    children(node).forEach(prepare);
+    visit(ast);
 }
 
 function ident(x) {
@@ -267,15 +272,47 @@ function transform(node) {
             }
             break;
         case 'ObjectExpression':
-            var scope = getEnclosingScope(node)
-            replacement = {
-                type: 'CallExpression',
-                callee: {
-                    type: 'MemberExpression',
-                    object: node,
-                    property: ident("__$__setobjenv")
-                },
-                arguments: [ident("__$__env" + scope.$depth)]
+            var ids = []
+            var properties = {}
+            for (var i=0; i<node.properties.length; i++) {
+                var prty = node.properties[i];
+                if (prty.kind === 'get' || prty.kind === 'set') {
+                    var key = prty.key.type === 'Literal' ? prty.key.value : prty.key.name;
+                    if (!properties[key]) {
+                        properties[key] = {};
+                    }
+                    if (prty.kind === 'get')
+                        properties[key].get = prty.value.$functionId;
+                    else
+                        properties[key].set = prty.value.$functionId;
+                }
+            }
+            for (var k in properties) {
+                var prty = properties[k]
+                if ("get" in prty)
+                    ids.push(prty.get)
+                if ("set" in prty)
+                    ids.push(prty.set)
+            }
+            if (ids.length > 0) { // only instrument if object has getters/setters
+                var scope = getEnclosingScope(node)
+                replacement = {
+                    type: 'CallExpression',
+                    callee: {
+                        type: 'MemberExpression',
+                        object: node,
+                        property: ident("__$__initObject")
+                    },
+                    arguments: [
+                        ident("__$__env" + scope.$depth),
+                        {
+                            type: 'ArrayExpression',
+                            elements: ids.map(function(x) {
+                                return {type:'Literal', value:String(x)}
+                            })
+                        }
+                    ]
+                }
             }
             break;
         case 'FunctionExpression':
@@ -315,7 +352,7 @@ function transform(node) {
                     callee: {
                         type:'MemberExpression',
                         object:node,
-                        property:{type:'Identifier', name:"__$__setenv"}
+                        property:{type:'Identifier', name:"__$__initFunction"}
                     },
                     arguments: [{type:'Identifier', name:"__$__env" + (node.$depth - 1)}]
                 }

@@ -12,21 +12,21 @@
     }
     
     var worklist = [];
-    var heap = {};
+    var heap = [];
+    
+    // TODO: identify functions created by Function.prototype.bind
     
     function enqueue(obj) {
-        if (obj.__$__visited) {
+        if (obj.hasOwnProperty("__$__visited")) {
             return;
         }
         obj.__$__visited = true
         worklist.push(obj)
     }
     
-    // TODO: identify function objects in dump
-    
     function dump(obj) {
         var key = getKey(obj);
-        var objDump = heap[key] = {}
+        var objDump = heap[key] = { properties: [] }
         var props = Object.getOwnPropertyNames(obj)
         for (var i=0; i<props.length; i++) {
             var prop = props[i];
@@ -36,6 +36,7 @@
                 continue;
             var desc = Object.getOwnPropertyDescriptor(obj, prop)
             var descDump = {
+                name: prop,
                 writable: desc.writable,
                 enumerable: desc.enumerable,
                 configurable: desc.configurable
@@ -49,14 +50,17 @@
             if (desc.value) {
                 descDump.value = convertValue(desc.value)
             }
-            objDump[prop] = descDump
+            objDump.properties.push(descDump)
         }
         if (!obj.__$__isEnv) {
-            objDump.__$__prototype = convertValue(Object.getPrototypeOf(obj));
+            objDump.prototype = convertValue(Object.getPrototypeOf(obj));
         }
         if (obj.__$__env && obj.__$__env !== window) {
             obj.__$__env.__$__isEnv = true;
-            objDump.__$__env = convertValue(obj.__$__env);
+            objDump.env = convertValue(obj.__$__env);
+        }
+        if (typeof obj.__$__functionId !== 'undefined') {
+            objDump.function = obj.__$__functionId;
         }
     }
     function convertValue(value) {
@@ -81,7 +85,12 @@
         dump(worklist.pop());
     }
     
-    console.log(heap);
+    var output = {
+        global: getKey(window),
+        heap: heap
+    }
+    
+    console.log(output);
     
     
 })();

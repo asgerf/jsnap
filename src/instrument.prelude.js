@@ -34,22 +34,26 @@
         });
     }
     
-    defineHiddenProperty(Function.prototype, "__$__setenv", function(env) {
-        this.__$__env = env;
+    defineHiddenProperty(Function.prototype, "__$__initFunction", function(env,id) {
+        defineHiddenProperty(this, "__$__env", env);
+        defineHiddenProperty(this, "__$__fun", id);
         return this;
     });
         
-    defineHiddenProperty(Object.prototype, "__$__setobjenv", function(env) {
+    defineHiddenProperty(Object.prototype, "__$__initObject", function(env,ids) {
         var obj = this;
         var names = getOwnPropertyNames.call(_Object, obj);
+        var idIdx = 0;
         for (var k=0; k<names.length; k++) {
             var name = names[k];
             var desc = getOwnPropertyDescriptor.call(_Object, obj, name); //getOwnPropertyDescriptor.call(obj, name);
             if (desc.get) {
-                desc.get.__$__env = env;
+                defineHiddenProperty(desc.get, "__$__env", env)
+                defineHiddenProperty(desc.get, "__$__fun", ids[idIdx++])
             }
             if (desc.set) {
-                desc.set.__$__env = env;
+                defineHiddenProperty(desc.set, "__$__env", env)
+                defineHiddenProperty(desc.set, "__$__fun", ids[idIdx++])
             }
         }
         return this;
