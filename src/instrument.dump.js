@@ -34,7 +34,13 @@
                 continue;
             if (prop === '__proto__')
                 continue;
-            var desc = Object.getOwnPropertyDescriptor(obj, prop)
+            try {
+                var desc = Object.getOwnPropertyDescriptor(obj, prop)
+            } catch (e) {
+                continue; // skip if WebKit security gets angry
+            }
+            if (!desc)
+                continue; // happens to strange objects sometimes
             var descDump = {
                 name: prop,
                 writable: desc.writable,
@@ -60,7 +66,7 @@
             objDump.env = convertValue(obj.__$__env);
         }
         if (typeof obj.__$__functionId !== 'undefined') {
-            objDump.function = obj.__$__functionId;
+            objDump.function = convertFun(obj.__$__functionId);
         }
     }
     function convertValue(value) {
@@ -79,6 +85,18 @@
                 return {key: getKey(value)}
         }
     }
+    function convertFun(fun) {
+        switch (fun.type) {
+            case 'user':
+            case 'native':
+                return fun;
+            case 'bind':
+                fun.target = convertValue(fun.target)
+                fun.arguments = fun.arguments.map(convertValue)
+                return fun;
+        }
+        throw new Error("Unknown function ID type: " + fun.type)
+    }
     
     enqueue(window);
     while (worklist.length > 0) {
@@ -90,7 +108,7 @@
         heap: heap
     }
     
-    console.log(output);
+    console.log(JSON.stringify(output));
     
     
 })();

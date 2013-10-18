@@ -419,6 +419,30 @@ function clearAnnotations(node) {
     children(node).forEach(clearAnnotations);
 }
 
+function makeNativeInitializer(name) {
+    var tokens = name.split('.')
+    var m;
+    var exp;
+    if (m = tokens[0].match(/require(.*)/)) {
+        exp = { type: 'CallExpression', callee: ident('require'), arguments: [{type:'Literal', value:m[1]}] }
+        tokens.shift()
+    } else {
+        exp = ident('window')
+    }
+    for (var i=0; i<tokens.length; i++) {
+        exp = {
+            type: 'MemberExpression',
+            object: exp,
+            property: ident(tokens[i])
+        }
+    }
+    return wrapStmt({
+        type: 'Assignment',
+        operator: '=',
+        left: { type: 'MemberExpression', object:exp, property:ident('__$__functionId') }
+    })
+}
+
 var instrument = module.exports = function(code, options) {
     // setup default options
     options = options || {}
@@ -437,10 +461,27 @@ var instrument = module.exports = function(code, options) {
     var instrumentedCode = escodegen.generate(newAST);
     if (options.prelude) {
         var preludeCode = fs.readFileSync(__dirname + '/instrument.prelude.js', 'utf8')
-        instrumentedCode = preludeCode + instrumentedCode
+        var natives = fs.readFileSync(__dirname + '/natives-node.txt', 'utf8')
+        var nativeAst = {
+            type: 'ExpressionStatement',
+            expression: {
+                type: 'CallExpression',
+                callee: ident("__$__instrumentNatives"),
+                arguments: [{
+                    type: 'ArrayExpression',
+                    elements: natives.split(/\r?\n/).filter(function (x) { return x != '' }).map(function(x) {
+                        return { type: 'Literal', value: x }
+                    })
+                }]
+            }
+        }
+        var nativeCode = escodegen.generate(nativeAst)
+        instrumentedCode = preludeCode + '\n' + nativeCode + '\n' + instrumentedCode
     }
     return instrumentedCode
 }
+
+module.exports = instrument;
 
 // Testing entry point
 if (require.main === module) {

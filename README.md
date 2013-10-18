@@ -11,7 +11,6 @@ A state dump is a JSON object, described in the following paragraphs.
 
 A ''value'' in the heap dump satisfies the type:
 
-
     type Value = 
       string | number | boolean | undefined | null | { key: number }
 
@@ -21,7 +20,7 @@ That is, all primitive JavaScript values are encoded directly, while objects are
 Objects in the heap are encoded in the following way:
 
     type Obj = {
-      function?: UserFunc | NativeFunc
+      function?: UserFunc | NativeFunc | BindFunc | UnknownFunc
       env?: Value
       prototype?: Value
       properties: Array[Property]
@@ -43,13 +42,28 @@ Objects in the heap are encoded in the following way:
         type: 'native'
         id: string
     }
-
+    type BindFunc = {
+        type: 'bind'
+        target: Value
+        arguments: Array[Value]
+    }
+    type UnknownFunc = {
+        type: 'unknown'
+    }
 
 The `Property` type corresponds to what you would get from `getOwnPropertyDescriptor`, except with the additional `name` property. The properties occur in the same order as returned by `getOwnPropertyNames`.
 
-An object is a function if and only if it has a `function` property. For user-defined functions, the value of `function.id` is a number indicating which function expression (or declaration) was used to create it. Functions are numbered by the order in which they occur in the source code, starting with 1 (so we can use 0 to refer to the top-level, although this is never occurs in a heap dump). For native functions, `function.id` is a string denoting an access path to that native, e.g. `"String.prototype.substring"`.
+An object is a function if it has a `function` property. Four types of functions are supported:
 
-The `env` property is used to refer to the *enclosing environment object*. Function objects and environment objects have such a link. For functions, it refers to the environment object that was active when the function was created (binding the free variables of the function). Environment objects also have an `env` property, which refers to the environment object one scope further up.
+ - `UserFunc`: User functions are functions that have a body in the source code. The `id` field indicates which function expression, declaration, getter, or setter is the body of the function. Functions are numbered by the order in which they occur in the source code, starting with 1 (so we can use 0 to refer to the top-level, although this is never occurs in a heap dump).
+ 
+ - `NativeFunc`: Native functions are the built-in functions that come with the runtime environment (node.js or WebKit). These are identified by a string such as "String.prototype.substring". For platform XXX there is a canonical set of native identifiers is given in `natives-XXX.txt`.
+ 
+ - `BindFunc`: These functions are functions are created using `Function.prototype.bind`.
+ 
+ - `UnknownFunc`: These are functions not covered by any of the above. These could be functions created during a call to `eval`, by a call to `Function` or be a native function whose identifier is not canonicalized.
+
+The `env` property is used to refer to the *enclosing environment object*. Function objects and environment objects have such a link. For user functions, it refers to the environment object that was active when the function was created (binding the free variables of the function). Environment objects also have an `env` property, which refers to the environment object one scope further up.
 
 The `prototype` property refers to the value of the internal prototype link. This property is absent for environment objects; all plain JavaScript objects have the property, although it may have the value `null`.
 
