@@ -24,6 +24,8 @@
     var queue = new Queue();
     var protoQueue = new Queue();
     
+    var paths = {}
+    
     function enqueue(x, path) {
         if (typeof x !== 'object' && typeof x !== 'function')
             return;
@@ -40,7 +42,7 @@
     function visit(x) {
         var path = x.__$__path;
         if (typeof x === 'function') {
-            console.log(path)
+            paths['$' + path] = true
         }
         var names = Object.getOwnPropertyNames(x)
         for (var i=0; i<names.length; i++) {
@@ -77,12 +79,12 @@
         x.__$__queued = true;
     }
     
-    var isPhantomJs = !!window.phantom;
+    var isPhantomJs = !!window._phantom;
     var isNodeJs = !isPhantomJs;
     
     if (isPhantomJs) {
-        blacklist(phantom)
-        blacklist(require.cache);
+        blacklist(_phantom)
+        blacklist(callPhantom)
     }
     if (isNodeJs) {
         var fs = require('fs')
@@ -100,6 +102,12 @@
         }
         var x = protoQueue.pop();
         enqueue(Object.getPrototypeOf(x), x.__$__path + '.__proto__')
+    }
+    
+    for (var k in paths) {
+        if (k[0] != '$')
+            continue;
+        console.log(k.substring(1))
     }
     
 })();

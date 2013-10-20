@@ -14,7 +14,8 @@ var testdir = 'testcases';
 var outdir = 'output';
 var nodeCmd = process.argv[0]
 
-var files = fs.readdirSync(testdir)
+var files = fs.readdirSync(testdir).sort()
+
 var preludeText = fs.readFileSync('src/instrument.prelude.js')
 
 function endsWith(str, suffix) {
@@ -26,7 +27,7 @@ files.forEach(function(filename) {
         return;
     var file = testdir + '/' + filename
     var code = fs.readFileSync(file, 'utf8')
-    var instrumentedCode = instrument(code, {prelude: true})
+    var instrumentedCode = instrument(code, {silent: false, dump:false, runtime:'node'})
     fs.writeFileSync(outdir + '/' + filename, instrumentedCode)
     execFile(nodeCmd, [testdir + '/' + filename], {timeout:10000}, function(err, stdout1, stderr1) {
         if (err) {
@@ -35,8 +36,8 @@ files.forEach(function(filename) {
         stdout1 = stdout1.toString('utf8')
         stderr1 = stderr1.toString('utf8')
         execFile(nodeCmd, [outdir + '/' + filename], {timeout:10000}, function(err, stdout2, stderr2) {
-            //if (err)
-            //$    throw err;
+            if (err)
+                throw err;
             var msg = "OK";
             stdout2 = stdout2.toString('utf8')
             stderr2 = stderr2.toString('utf8')

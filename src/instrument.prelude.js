@@ -1,4 +1,4 @@
-(function() {
+(function(options) {
     var window = this;
         
     // hijack some of the native functions
@@ -19,7 +19,6 @@
     var push = Array.prototype.push;
     
     var _bind = Function.prototype.bind;
-    
     function defineHiddenProperty(obj, prop, val) {
         defineProperty.call(_Object, obj, prop, 
             {   enumerable: false,
@@ -31,6 +30,25 @@
     function toArray(x) {
         return Array.prototype.slice.call(x, 0);
     }
+    
+    // ensure synchronous logging in node.js
+    if (options.runtime === 'node') {
+        var _fs = require('fs')
+        console.log = function(msg) {
+            var buf = new Buffer(String(msg) + '\n', 'utf8')
+            _fs.writeSync(process.stdout.fd, buf, 0, buf.length, process.stdout.pos)
+        }
+    }
+    
+    var _log = console.log
+    defineHiddenProperty(window, "__$__print", function(x) {
+        _log.call(console, x)
+    })
+    
+    if (options.silent) {
+        console.log = function() {}
+    }
+    
     Function.prototype.bind = function() {
         var f = _bind.apply(this, arguments);
         defineHiddenProperty(f, "__$__fun", {type:'bind', target:this, arguments:toArray(arguments)})
@@ -97,10 +115,17 @@
                     obj = obj[token]
                 }
             }
+//            if (!obj) {
+//                _log.call(console, "Invalid native: " + name)
+//            }
+            if (obj.hasOwnProperty("__$__fun")) {
+                _log.call(console, "Duplicate native: " + name + " vs " + obj.__$__fun.id)
+            }
             defineHiddenProperty(obj, "__$__fun", {type:'native', id:name})
         })
     }
     
-    defineHiddenProperty(window, "__$__instrumentNatives", instrumentNatives)
+    instrumentNatives(options.natives)
+    
         
-})();
+})(%ARGS%);

@@ -14,8 +14,6 @@
     var worklist = [];
     var heap = [];
     
-    // TODO: identify functions created by Function.prototype.bind
-    
     function enqueue(obj) {
         if (obj.hasOwnProperty("__$__visited")) {
             return;
@@ -65,8 +63,10 @@
             obj.__$__env.__$__isEnv = true;
             objDump.env = convertValue(obj.__$__env);
         }
-        if (typeof obj.__$__functionId !== 'undefined') {
-            objDump.function = convertFun(obj.__$__functionId);
+        if (typeof obj.__$__fun !== 'undefined') {
+            objDump.function = convertFun(obj.__$__fun);
+        } else if (typeof obj === 'function') {
+            objDump.function = {type:'unknown'}
         }
     }
     function convertValue(value) {
@@ -89,6 +89,7 @@
         switch (fun.type) {
             case 'user':
             case 'native':
+            case 'unknown':
                 return fun;
             case 'bind':
                 fun.target = convertValue(fun.target)
@@ -108,7 +109,10 @@
         heap: heap
     }
     
-    console.log(JSON.stringify(output));
+    __$__print(JSON.stringify(output));
     
+    if (process && process.exit) {
+        process.exit();
+    }
     
 })();

@@ -443,12 +443,24 @@ function makeNativeInitializer(name) {
     })
 }
 
-var instrument = module.exports = function(code, options) {
-    // setup default options
-    options = options || {}
-    if (!('prelude' in options))
-        options.prelude = true
-        
+function defaulty(arg, defaults) {
+    if (!arg)
+        arg = {}
+    for (var k in defaults) {
+        if (!(k in arg)) {
+            arg[k] = defaults[k]
+        }
+    }
+    return arg
+}
+
+var instrument = module.exports = function(code,options) {
+    options = defaulty(options, {
+        silent: true,
+        dump: true,
+        runtime: 'browser'
+    })
+    
     // parse+transform AST
     var ast = esprima.parse(code)    
     injectParentPointers(ast, null)
@@ -459,26 +471,22 @@ var instrument = module.exports = function(code, options) {
     
     // Generate code
     var instrumentedCode = escodegen.generate(newAST);
-    if (options.prelude) {
-        var preludeCode = fs.readFileSync(__dirname + '/instrument.prelude.js', 'utf8')
-        var natives = fs.readFileSync(__dirname + '/natives-node.txt', 'utf8')
-        var nativeAst = {
-            type: 'ExpressionStatement',
-            expression: {
-                type: 'CallExpression',
-                callee: ident("__$__instrumentNatives"),
-                arguments: [{
-                    type: 'ArrayExpression',
-                    elements: natives.split(/\r?\n/).filter(function (x) { return x != '' }).map(function(x) {
-                        return { type: 'Literal', value: x }
-                    })
-                }]
-            }
-        }
-        var nativeCode = escodegen.generate(nativeAst)
-        instrumentedCode = preludeCode + '\n' + nativeCode + '\n' + instrumentedCode
-    }
-    return instrumentedCode
+    
+    // Generate prelude
+    var preludeCode = fs.readFileSync(__dirname + '/instrument.prelude.js', 'utf8')
+    var natives = fs.readFileSync(__dirname + '/natives-' + options.runtime +'.txt', 'utf8')
+    options.natives = natives.split(/\r?\n/).filter(function(x) { return x != '' })
+    preludeCode = preludeCode.replace('%ARGS%', JSON.stringify(options))
+    
+    // Generate code for dumping state
+    var dumpCode = options.dump ? fs.readFileSync(__dirname + '/instrument.dump.js', 'utf8') : "";
+    
+    // Generate code to exit the process, if running nodejs
+    var exitCode = options.runtime == 'node' ? "process.exit();" : "";
+    
+    var totalCode = preludeCode + '\n' + instrumentedCode + '\n' + dumpCode + '\n' + exitCode
+    
+    return totalCode
 }
 
 module.exports = instrument;
@@ -489,18 +497,11 @@ if (require.main === module) {
 }
 function main() {
     var program = require('commander')
-    program
-        .option('--no-prelude')
-        .parse(process.argv)
-    var options = {}
-    if (program.no_prelude) {
-        options.prelude = false
-    }
+    program.parse(process.argv)
+    var chunks = []
     for (var i=0; i<program.args.length; i++) {
-        var code = fs.readFileSync(program.args[i], 'utf8')
-        console.log(instrument(code), options)
-        options.prelude = false // only print prelude first time
+        chunks.push(fs.readFileSync(program.args[i], 'utf8'))
     }
-    // print dumping code
-    console.log(fs.readFileSync(__dirname + '/instrument.dump.js', 'utf8'))
+    var code = chunks.join('\n')
+    console.log(instrument(code))
 }
