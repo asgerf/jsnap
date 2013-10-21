@@ -49,10 +49,13 @@
         console.log = function() {}
     }
     
-    Function.prototype.bind = function() {
-        var f = _bind.apply(this, arguments);
-        defineHiddenProperty(f, "__$__fun", {type:'bind', target:this, arguments:toArray(arguments)})
-        return f;
+    if (_bind) {
+        // Only redefine Function.prototype.bind if already existed
+        Function.prototype.bind = function() {
+            var f = _bind.apply(this, arguments);
+            defineHiddenProperty(f, "__$__fun", {type:'bind', target:this, arguments:toArray(arguments)})
+            return f;
+        }
     }
     
     // hide the injected properties (anything starting with __$__)
