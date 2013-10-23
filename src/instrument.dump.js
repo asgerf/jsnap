@@ -3,9 +3,14 @@
     var window = this;
     var undefined;
     
+    var _hasOwnProperty = {}.hasOwnProperty;
+    function hasPrty(obj, x) {
+        return _hasOwnProperty.call(obj,x);
+    }
+    
     var nextKey = 1;
     function getKey(obj) {
-        if (!obj.__$__key) {
+        if (!hasPrty(obj, "__$__key")) {
             obj.__$__key = nextKey++;
         }
         return obj.__$__key;
@@ -15,7 +20,7 @@
     var heap = [];
     
     function enqueue(obj) {
-        if (obj.hasOwnProperty("__$__visited")) {
+        if (hasPrty(obj, "__$__visited")) {
             return;
         }
         obj.__$__visited = true
