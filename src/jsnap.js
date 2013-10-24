@@ -9,6 +9,7 @@ temp.track(); // ensure temporary files are deleted on exit
 
 program.version('0.1')
     .option('--runtime [node|browser]', 'Runtime environment to use (default: browser)', String, 'browser')
+    .option('--tmp [FILE]', 'Use the given file as temporary')
     .parse(process.argv)
 
 var chunks = []
@@ -19,16 +20,22 @@ files.forEach(function (file) {
 
 var instrumentedCode = instrument(chunks.join('\n'))
 
-var tempFile = temp.openSync('jsnap')
-
-fs.writeSync(tempFile.fd, instrumentedCode)
+var tempFilePath;
+if (program.tmp) {
+    fs.writeFileSync(program.tmp, instrumentedCode)
+    tempFilePath = program.tmp;
+} else {
+    var tempFile = temp.openSync('jsnap')
+    fs.writeSync(tempFile.fd, instrumentedCode)    
+    tempFilePath = tempFile.path;
+}
 
 var subproc;
 
 if (program.runtime === 'node') {
-    subproc = spawn('node', [tempFile.path], {stdio:['ignore',1,2]})
+    subproc = spawn('node', [tempFilePath], {stdio:['ignore',1,2]})
 } else if (program.runtime === 'browser') {
-    subproc = spawn('phantomjs', [__dirname + '/jsnap.phantom.js', tempFile.path], {stdio:['ignore',1,2]})
+    subproc = spawn('phantomjs', [__dirname + '/jsnap.phantom.js', tempFilePath], {stdio:['ignore',1,2]})
 } else {
     throw new Error("Invalid runtime: " + program.runtime)
 }
