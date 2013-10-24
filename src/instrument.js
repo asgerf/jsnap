@@ -222,36 +222,38 @@ function transform(node) {
     switch (node.type) {
         case 'VariableDeclaration':
             var fun = getEnclosingFunction(node)
-            var assignments = [];
-            for (var i=0; i<node.declarations.length; i++) {
-                var decl = node.declarations[i];
-                if (!decl.init)
-                    continue;
-                assignments.push({
-                    type:'AssignmentExpression',
-                    operator:'=',
-                    left: {
+            if (fun.$depth > 0) {
+                var assignments = [];
+                for (var i=0; i<node.declarations.length; i++) {
+                    var decl = node.declarations[i];
+                    if (!decl.init)
+                        continue;
+                    assignments.push({
+                        type:'AssignmentExpression',
+                        operator:'=',
+                        left: {
+                            type: 'MemberExpression',
+                            object: ident("__$__env" + fun.$depth),
+                            property: ident(decl.id.name)
+                        },
+                        right: decl.init
+                    })
+                }
+                var expr = assignments.length == 1 ? assignments[0] : {type:'SequenceExpression', expressions:assignments};
+                if (node.$parent.type === 'ForStatement' && node.$parent.init === node) {
+                    replacement = expr
+                } else if (node.$parent.type === 'ForInStatement' && node.$parent.left === node) {
+                    replacement = { 
                         type: 'MemberExpression',
                         object: ident("__$__env" + fun.$depth),
-                        property: ident(decl.id.name)
-                    },
-                    right: decl.init
-                })
-            }
-            var expr = assignments.length == 1 ? assignments[0] : {type:'SequenceExpression', expressions:assignments};
-            if (node.$parent.type === 'ForStatement' && node.$parent.init === node) {
-                replacement = expr
-            } else if (node.$parent.type === 'ForInStatement' && node.$parent.left === node) {
-                replacement = { 
-                    type: 'MemberExpression',
-                    object: ident("__$__env" + fun.$depth),
-                    property: ident(node.declarations[0].id.name)
-                }
-            } else {
-                if (assignments.length == 0) {
-                    replacement = {type:'EmptyStatement'}
+                        property: ident(node.declarations[0].id.name)
+                    }
                 } else {
-                    replacement = {type:'ExpressionStatement', expression:expr}
+                    if (assignments.length == 0) {
+                        replacement = {type:'EmptyStatement'}
+                    } else {
+                        replacement = {type:'ExpressionStatement', expression:expr}
+                    }
                 }
             }
             break;
