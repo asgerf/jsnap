@@ -2,7 +2,19 @@ About jsnap
 ===========
 **jsnap** dumps the state of a JavaScript program after executing the top-level code, but before entering the event loop. This state can then be analyzed by other tools.
 
-jsnap is under development and is **not currently functional**!
+jsnap is under development. It currently seems to work, but it may have some quirks.
+
+Usage
+=====
+Clone the repository then run `npm install` from the cloned repo to install the required packages. Also download and install [phantomjs]( http://phantomjs.org/download.html) and place the executable on your PATH.
+
+Assuming jsnap is installed in folder `jsnap`, run the tool like this:
+
+    node jsnap/src/jsnap.js FILE...
+
+where FILE is the JavaScript file whose snapshot you would like to take. You can specify multiple files; jsnap will simply concatenate them for you.
+
+By default, the file will run in a browser-like environment (WebKit) using phantomjs. To run the file using node.js's environment, add the parameter `--runtime node`. Note that this will execute the file with full privileges, there is no sandboxing!
 
 State Dump Format
 ================
