@@ -116,8 +116,8 @@
     
     __$__print(JSON.stringify(output));
     
-    if (process && process.exit) {
-        process.exit();
-    }
+    // if (process && process.exit) {
+    //     process.exit();
+    // }
     
 })();
