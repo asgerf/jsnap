@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 var vm = require('vm')
 var fs = require('fs')
 var program = require('commander')
