@@ -11,7 +11,10 @@
     var nextKey = 1;
     function getKey(obj) {
         if (!hasPrty(obj, "__$__key")) {
-            obj.__$__key = nextKey++;
+            obj.__$__key = nextKey;
+            if (!hasPrty(obj, '__$__key'))
+                return null; // mysteriously immutable object - give up
+            nextKey += 1;
         }
         return obj.__$__key;
     }
@@ -29,6 +32,8 @@
     
     function dump(obj) {
         var key = getKey(obj);
+        if (key === null)
+            return;
         var objDump = heap[key] = { properties: [] }
         var props = Object.getOwnPropertyNames(obj)
         for (var i=0; i<props.length; i++) {
@@ -61,14 +66,14 @@
             }
             objDump.properties.push(descDump)
         }
-        if (!obj.__$__isEnv) {
+        if (!hasPrty(obj, '__$__isEnv')) {
             objDump.prototype = convertValue(Object.getPrototypeOf(obj));
         }
-        if (obj.__$__env && obj.__$__env !== window) {
+        if (hasPrty(obj, '__$__env') && obj.__$__env !== window) {
             obj.__$__env.__$__isEnv = true;
             objDump.env = convertValue(obj.__$__env);
         }
-        if (typeof obj.__$__fun !== 'undefined') {
+        if (hasPrty(obj, '__$__fun') && typeof obj.__$__fun !== 'undefined') {
             objDump.function = convertFun(obj.__$__fun);
         } else if (typeof obj === 'function') {
             objDump.function = {type:'unknown'}
@@ -87,7 +92,10 @@
                 if (value === null)
                     return null;
                 enqueue(value)
-                return {key: getKey(value)}
+                var key = getKey(value)
+                if (key === null)
+                    return null; // not really correct, but what can you do
+                return {key: key}
         }
     }
     function convertFun(fun) {
