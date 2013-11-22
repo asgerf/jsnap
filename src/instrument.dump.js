@@ -8,12 +8,25 @@
         return _hasOwnProperty.call(obj,x);
     }
     
+    var immutableObjectKeys = [];
+    var immutableObjects = [];
     var nextKey = 1;
+    function lookupImmutableObj(obj) {
+        var len = immutableObjects.length;
+        for (var i=0; i<len; ++i) {
+            if (immutableObjects[i] === obj)
+                return immutableObjectKeys[i];
+        }
+        var key = nextKey++;
+        immutableObjects.push(obj)
+        immutableObjectKeys.push(key)
+        return key;
+    }
     function getKey(obj) {
         if (!hasPrty(obj, "__$__key")) {
             obj.__$__key = nextKey;
             if (!hasPrty(obj, '__$__key'))
-                return null; // mysteriously immutable object - give up
+                return lookupImmutableObj(obj); // immutable object; we have to use slow lookup
             nextKey += 1;
         }
         return obj.__$__key;
