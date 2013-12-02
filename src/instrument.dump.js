@@ -68,13 +68,13 @@
                 enumerable: desc.enumerable,
                 configurable: desc.configurable
             }
-            if (desc.get) {
+            if (hasPrty(desc,'get')) {
                 descDump.get = convertValue(desc.get)
             }
-            if (desc.set) {
+            if (hasPrty(desc, 'set')) {
                 descDump.set = convertValue(desc.set)
             }
-            if (desc.value) {
+            if (hasPrty(desc,'value')) {
                 descDump.value = convertValue(desc.value)
             }
             objDump.properties.push(descDump)
