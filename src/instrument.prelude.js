@@ -117,12 +117,16 @@
                 else {
                     obj = obj[token]
                 }
+                if (!obj)
+                    return;
             }
-//            if (!obj) {
-//                _log.call(console, "Invalid native: " + name)
-//            }
+            if (!obj) {
+                // _log.call(console, "Invalid native: " + name)
+                return;
+            }
             if (obj.hasOwnProperty("__$__fun")) {
-                _log.call(console, "Duplicate native: " + name + " vs " + obj.__$__fun.id)
+                // _log.call(console, "Duplicate native: " + name + " vs " + obj.__$__fun.id)
+                return;
             }
             defineHiddenProperty(obj, "__$__fun", {type:'native', id:name})
         })

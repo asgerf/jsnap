@@ -19,7 +19,7 @@ files.forEach(function (file) {
     chunks.push(fs.readFileSync(file, 'utf8'))
 })
 
-var instrumentedCode = instrument(chunks.join('\n'))
+var instrumentedCode = instrument(chunks.join('\n'), {runtime: program.runtime})
 
 var tempFilePath;
 if (program.tmp) {
