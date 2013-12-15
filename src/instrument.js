@@ -356,19 +356,34 @@ function transform(node) {
                         object:node,
                         property:{type:'Identifier', name:"__$__initFunction"}
                     },
-                    arguments: [{type:'Identifier', name:"__$__env" + (node.$depth - 1)}]
+                    arguments: [
+                        {type:'Identifier', name:"__$__env" + (node.$depth - 1)}, 
+                        {type:'Literal', value:node.$functionId}
+                    ]
                 }
             } else if (node.type === 'FunctionDeclaration') {
                 parent.$funDeclInits.push(wrapStmt({
-                    type:'AssignmentExpression',
-                    operator:'=',
-                    left: {
-                        type: 'MemberExpression',
+                    type:'CallExpression',
+                    callee: {
+                        type:'MemberExpression',
                         object: ident(node.id.name),
-                        property: ident("__$__env")
+                        property: ident("__$__initFunction")
                     },
-                    right: { type:'Identifier', name:"__$__env" + (node.$depth - 1)}
+                    arguments: [
+                        ident("__$__env" + (node.$depth-1)),
+                        {type:'Literal', value:node.$functionId}
+                    ]
                 }))
+                // parent.$funDeclInits.push(wrapStmt({
+                //     type:'AssignmentExpression',
+                //     operator:'=',
+                //     left: {
+                //         type: 'MemberExpression',
+                //         object: ident(node.id.name),
+                //         property: ident("__$__env")
+                //     },
+                //     right: { type:'Identifier', name:"__$__env" + (node.$depth - 1)}
+                // }))
                 parent.$funDeclInits.push(wrapStmt({
                     type:'AssignmentExpression',
                     operator:'=',
@@ -406,6 +421,9 @@ function transform(node) {
                 }]
             }
             block.body = [stmt].concat(block.body)
+            break;
+        case 'Program':
+            node.body = node.$funDeclInits.concat(node.body)
             break;
     }
     return replacement;
