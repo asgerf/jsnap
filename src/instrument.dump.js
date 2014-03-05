@@ -82,8 +82,10 @@
         if (!hasPrty(obj, '__$__isEnv')) {
             objDump.prototype = convertValue(Object.getPrototypeOf(obj));
         }
-        if (hasPrty(obj, '__$__env') && obj.__$__env !== window) {
-            obj.__$__env.__$__isEnv = true;
+        if (hasPrty(obj, '__$__env')) {
+            if (obj.__$__env !== window) {
+                obj.__$__env.__$__isEnv = true;
+            }
             objDump.env = convertValue(obj.__$__env);
         }
         if (hasPrty(obj, '__$__fun') && typeof obj.__$__fun !== 'undefined') {

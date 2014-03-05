@@ -183,6 +183,25 @@ function wrapStmt(x) {
     }
 }
 
+function markShadowedFunctionDecls(ast) {
+    function visit(node) {
+        if (node.type === 'FunctionDeclaration') {
+            node.$declared_funs = new Map
+            var outer = getEnclosingFunction(node.$parent)
+            var existing = outer.$declared_funs.get(node.id.name)
+            if (existing) {
+                existing.$shadowed = true
+            }
+            outer.$declared_funs.put(node.id.name, node)
+        }
+        else if (node.type === 'Program' || node.type === 'FunctionExpression') {
+            node.$declared_funs = new Map
+        }
+        children(node).forEach(visit)
+    }
+    visit(ast)
+}
+
 function prepare(ast)  {
     var id = 0;
     function visit(node) {
@@ -361,7 +380,7 @@ function transform(node) {
                         {type:'Literal', value:node.$functionId}
                     ]
                 }
-            } else if (node.type === 'FunctionDeclaration') {
+            } else if (node.type === 'FunctionDeclaration' && !node.$shadowed) {
                 parent.$funDeclInits.push(wrapStmt({
                     type:'CallExpression',
                     callee: {
@@ -374,16 +393,6 @@ function transform(node) {
                         {type:'Literal', value:node.$functionId}
                     ]
                 }))
-                // parent.$funDeclInits.push(wrapStmt({
-                //     type:'AssignmentExpression',
-                //     operator:'=',
-                //     left: {
-                //         type: 'MemberExpression',
-                //         object: ident(node.id.name),
-                //         property: ident("__$__env")
-                //     },
-                //     right: { type:'Identifier', name:"__$__env" + (node.$depth - 1)}
-                // }))
                 parent.$funDeclInits.push(wrapStmt({
                     type:'AssignmentExpression',
                     operator:'=',
@@ -464,19 +473,21 @@ function makeNativeInitializer(name) {
 }
 
 function defaulty(arg, defaults) {
-    if (!arg)
-        arg = {}
+    var result = {}
     for (var k in defaults) {
         if (!(k in arg)) {
-            arg[k] = defaults[k]
+            result[k] = defaults[k]
+        } else {
+            result[k] = arg[k]
         }
     }
-    return arg
+    return result
 }
 
 var instrument = module.exports = function(code,options) {
     options = defaulty(options, {
         silent: true,
+        prelude: true,
         dump: true,
         runtime: 'browser'
     })
@@ -486,6 +497,7 @@ var instrument = module.exports = function(code,options) {
     injectParentPointers(ast, null)
     injectEnvs(ast)
     prepare(ast)
+    markShadowedFunctionDecls(ast)
     var newAST = fmap(ast, transform);
     clearAnnotations(newAST)
     
@@ -493,10 +505,15 @@ var instrument = module.exports = function(code,options) {
     var instrumentedCode = escodegen.generate(newAST);
     
     // Generate prelude
-    var preludeCode = fs.readFileSync(__dirname + '/instrument.prelude.js', 'utf8')
-    var natives = fs.readFileSync(__dirname + '/natives-' + options.runtime +'.txt', 'utf8')
-    options.natives = natives.split(/\r?\n/).filter(function(x) { return x != '' })
-    preludeCode = preludeCode.replace('%ARGS%', JSON.stringify(options))
+    if (options.prelude) {
+        var preludeCode = fs.readFileSync(__dirname + '/instrument.prelude.js', 'utf8')
+        var natives = fs.readFileSync(__dirname + '/natives-' + options.runtime +'.txt', 'utf8')
+        options.natives = natives.split(/\r?\n/).filter(function(x) { return x != '' })
+        preludeCode = preludeCode.replace('%ARGS%', JSON.stringify(options))
+    } else {
+        var preludeCode = ''
+    }
+    
     
     // Generate code for dumping state
     var dumpCode = options.dump ? fs.readFileSync(__dirname + '/instrument.dump.js', 'utf8') : "";
@@ -517,11 +534,13 @@ if (require.main === module) {
 }
 function main() {
     var program = require('commander')
+    program.option('--no-dump', 'Do not include dump-to-console code')
+    program.option('--no-prelude', 'Do not include prelude')
     program.parse(process.argv)
     var chunks = []
     for (var i=0; i<program.args.length; i++) {
         chunks.push(fs.readFileSync(program.args[i], 'utf8'))
     }
     var code = chunks.join('\n')
-    console.log(instrument(code))
+    console.log(instrument(code, program))
 }
