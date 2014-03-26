@@ -6,11 +6,11 @@ jsnap is under development. It currently seems to work, but it may have some qui
 
 Usage
 =====
-Clone the repository then run `npm install` from the cloned repo to install the required packages. Also download and install [phantomjs]( http://phantomjs.org/download.html) and place the executable on your PATH.
+Clone the repository then run `npm install` from the cloned repo to install the required packages.
 
 Assuming jsnap is installed in folder `jsnap`, run the tool like this:
 
-    node jsnap/src/jsnap.js FILE...
+    node jsnap/jsnap.js FILE...
 
 where FILE is the JavaScript file whose snapshot you would like to take. You can specify multiple files; jsnap will simply concatenate them for you.
 

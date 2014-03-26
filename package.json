@@ -1,6 +1,6 @@
 {
     "name": "jsnap",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Executes a JavaScript file and dumps a snapshot of the state after executing the top-level code, before entering the event loop",
     "author": {
         "name": "Asger Feldthaus",
@@ -12,6 +12,11 @@
         "commander": "*",
         "temp": "*",
         "esprima": "*",
-        "escodegen": "*"
+        "escodegen": "*",
+        "phantomjs": "*"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/asgerf/jsnap"
     }
 }

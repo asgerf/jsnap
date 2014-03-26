@@ -2,9 +2,10 @@
 var vm = require('vm')
 var fs = require('fs')
 var program = require('commander')
-var instrument = require('./instrument')
+var instrument = require('./lib/instrument')
 var spawn = require('child_process').spawn
 var temp = require('temp')
+var phantomjs = require('phantomjs')
 
 temp.track(); // ensure temporary files are deleted on exit
 
@@ -36,7 +37,7 @@ var subproc;
 if (program.runtime === 'node') {
     subproc = spawn('node', [tempFilePath], {stdio:['ignore',1,2]})
 } else if (program.runtime === 'browser') {
-    subproc = spawn('phantomjs', [__dirname + '/jsnap.phantom.js', tempFilePath], {stdio:['ignore',1,2]})
+    subproc = spawn(phantomjs.path, [__dirname + '/lib/jsnap.phantom.js', tempFilePath], {stdio:['ignore',1,2]})
 } else {
     throw new Error("Invalid runtime: " + program.runtime)
 }
@@ -44,7 +45,3 @@ if (program.runtime === 'node') {
 subproc.on('error', function(e) {
     console.error(e)
 })
-
-//subproc.stdin.write(instrumentedCode, 'utf8', function() {
-//    subproc.stdin.end()
-//})
