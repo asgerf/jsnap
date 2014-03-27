@@ -6,7 +6,7 @@
         "name": "Asger Feldthaus",
         "email": "asf@cs.au.dk"
     },
-    "files": ["lib"],
+    "files": ["lib","jsnap.js"],
     "bin": "jsnap.js",
     "dependencies": {
         "commander": "*",
