@@ -6,8 +6,8 @@
         "name": "Asger Feldthaus",
         "email": "asf@cs.au.dk"
     },
-    "files": ["src"],
-    "bin": "src/jsnap.js",
+    "files": ["lib"],
+    "bin": "jsnap.js",
     "dependencies": {
         "commander": "*",
         "temp": "*",
