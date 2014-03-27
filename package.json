@@ -7,6 +7,7 @@
         "email": "asf@cs.au.dk"
     },
     "files": ["lib","jsnap.js"],
+    "main": "jsnap.js",
     "bin": "jsnap.js",
     "dependencies": {
         "commander": "*",
