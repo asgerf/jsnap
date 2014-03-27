@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-var vm = require('vm')
 var fs = require('fs')
 var program = require('commander')
 var instrument = require('./lib/instrument')
@@ -9,39 +8,66 @@ var phantomjs = require('phantomjs')
 
 temp.track(); // ensure temporary files are deleted on exit
 
-program.version('0.1')
-    .option('--runtime [node|browser]', 'Runtime environment to use (default: browser)', String, 'browser')
-    .option('--tmp [FILE]', 'Use the given file as temporary')
-    .parse(process.argv)
+/**
+ * Options:
+ * - files {string[]} Names of JavaScript files to concatenate and execute
+ * - stdio: standard I/O to pass to the subprocess
+ * Returns a subprocess
+ */
+function jsnap(options) {
+    var runtime = options.runtime || 'browser';
 
-var chunks = []
-var files = program.args
-files.forEach(function (file) {
-    chunks.push(fs.readFileSync(file, 'utf8'))
-})
+    var chunks = []
 
-var instrumentedCode = instrument(chunks.join('\n'), {runtime: program.runtime})
+    options.files.forEach(function (file) {
+        chunks.push(fs.readFileSync(file, 'utf8'))
+    })
+    var instrumentedCode = instrument(chunks.join('\n'), {runtime: runtime})
 
-var tempFilePath;
-if (program.tmp) {
-    fs.writeFileSync(program.tmp, instrumentedCode)
-    tempFilePath = program.tmp;
-} else {
-    var tempFile = temp.openSync('jsnap')
-    fs.writeSync(tempFile.fd, instrumentedCode)    
-    tempFilePath = tempFile.path;
+    var tempFilePath;
+    if (options.tmp) {
+        fs.writeFileSync(options.tmp, instrumentedCode)
+        tempFilePath = options.tmp;
+    } else {
+        var tempFile = temp.openSync('jsnap')
+        fs.writeSync(tempFile.fd, instrumentedCode)    
+        tempFilePath = tempFile.path;
+    }
+
+    var subproc;
+
+    if (runtime === 'node') {
+        subproc = spawn('node', [tempFilePath], {stdio: options.stdio})
+    } else if (runtime === 'browser') {
+        subproc = spawn(phantomjs.path, [__dirname + '/lib/jsnap.phantom.js', tempFilePath], {stdio: options.stdio})
+    } else {
+        throw new Error("Invalid runtime: " + runtime)
+    }
+
+    return subproc;
+}
+module.exports = jsnap
+
+
+function main() {
+    program.version('0.1')
+        .option('--runtime [node|browser]', 'Runtime environment to use (default: browser)', String, 'browser')
+        .option('--tmp [FILE]', 'Use the given file as temporary')
+        .parse(process.argv)
+
+    var options = {
+        runtime: program.runtime,
+        tmp: program.tmp,
+        stdio: ['ignore', 1, 2],
+        files: program.args
+    }
+    var subproc = jsnap(options)
+    subproc.on('error', function(e) {
+        console.error(e)
+    })
 }
 
-var subproc;
 
-if (program.runtime === 'node') {
-    subproc = spawn('node', [tempFilePath], {stdio:['ignore',1,2]})
-} else if (program.runtime === 'browser') {
-    subproc = spawn(phantomjs.path, [__dirname + '/lib/jsnap.phantom.js', tempFilePath], {stdio:['ignore',1,2]})
-} else {
-    throw new Error("Invalid runtime: " + program.runtime)
+if (require.main === module) {
+    main();
 }
-
-subproc.on('error', function(e) {
-    console.error(e)
-})
