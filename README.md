@@ -24,10 +24,10 @@ A state dump is a JSON object, described in the following paragraphs.
 A ''value'' in the heap dump satisfies the type:
 
     type Value = 
-      string | number | boolean | undefined | null | { key: number }
+      string | number | boolean | null | { key: number } | { isUndefined: true }
 
 
-That is, all primitive JavaScript values are encoded directly, while objects are indirectly referenced using a numerical key (wrapped inside an object for unambiguity). Function objects are treated like objects in this regard.
+That is, all primitive JavaScript values except undefined are encoded directly, while objects are indirectly referenced using a numerical key (wrapped inside an object for unambiguity). Function objects are treated like objects in this regard. Undefined is represented as an object because JSON has no syntax for that value.
 
 Objects in the heap are encoded in the following way:
 
