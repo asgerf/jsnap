@@ -7,7 +7,7 @@
 
 var fs = require('fs')
 var program = require('commander')
-var instrument = require('./src/instrument')
+var instrument = require('./lib/instrument')
 var execFile = require('child_process').execFile; 
 
 var testdir = 'testcases';
@@ -16,7 +16,7 @@ var nodeCmd = process.argv[0]
 
 var files = fs.readdirSync(testdir).sort()
 
-var preludeText = fs.readFileSync('src/instrument.prelude.js')
+var preludeText = fs.readFileSync('lib/instrument.prelude.js')
 
 function endsWith(str, suffix) {
     return str.indexOf(suffix, str.length - suffix.length) !== -1;
