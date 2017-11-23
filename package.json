@@ -1,6 +1,6 @@
 {
     "name": "jsnap",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "description": "Executes a JavaScript file and dumps a snapshot of the state after executing the top-level code, before entering the event loop",
     "author": {
         "name": "Asger Feldthaus",
