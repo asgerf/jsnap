@@ -4,7 +4,7 @@ var program = require('commander')
 var instrument = require('./lib/instrument')
 var spawn = require('child_process').spawn
 var temp = require('temp')
-var phantomjs = require('phantomjs')
+var phantomjs = require('phantomjs-prebuilt')
 
 temp.track(); // ensure temporary files are deleted on exit
 
@@ -30,7 +30,7 @@ function jsnap(options) {
         tempFilePath = options.tmp;
     } else {
         var tempFile = temp.openSync('jsnap')
-        fs.writeSync(tempFile.fd, instrumentedCode)    
+        fs.writeSync(tempFile.fd, instrumentedCode)
         tempFilePath = tempFile.path;
     }
 
